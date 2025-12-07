@@ -29,33 +29,38 @@
    - [Extension Results](#c-extension-results-smote-and-class-weight)
    - [Diagnostic Analysis](#d-diagnostic-analysis-why-models-failed)
 5. [Conclusion](#5-conclusion)
-   - [Findings](#a-summary-of-extensions)
+   - [Summary of Extensions](#a-summary-of-extensions)
+   - [Why the Paper's Simple Approach Worked](#b-why-the-papers-simple-approach-worked)
+   - [Why Logistic Regression Matched Complex Models](#c-why-logistic-regression-matched-complex-models)
+   - [Why SMOTE Models Initially "Failed"](#d-why-smote-models-initially-failed)
+   - [What the Predictability Ceiling Tells Us](#e-what-the-predictability-ceiling-tells-us)
    - [Challenges](#f-challenges)
    - [Future Work](#g-future-work)
 6. [References](#6-references)
-7. [Source Code](#7-source-code)
+7. [Acknowledgements](#7-acknowledgements)
+8. [Source Code](#8-source-code)
 
 ---
 
-## 1. Introduction
+## 1. Introduction {#1-introduction}
 
-### a. Problem Statement
+### a. Problem Statement {#a-problem-statement}
 
 Diabetes mellitus is a chronic metabolic disorder affecting over 37 million Americans, with an additional 8.5 million undiagnosed cases (CDC, 2023). Early prediction of diabetes risk based on behavioral and health indicators could enable preventive interventions before the disease progresses. In this project, I aim to replicate and extend the work of Nguyen & Zhang (2025), who compared machine learning classification models for diabetes prediction using the CDC's Behavioral Risk Factor Surveillance System (BRFSS) 2015 dataset. The goal is to evaluate whether alternative preprocessing strategies and additional models can improve upon their reported results.
 
-### b. Motivation
+### b. Motivation {#b-motivation}
 
 The motivation for this project is threefold. First, replication studies are essential for validating published research, yet they are underrepresented in machine learning literature. Second, Nguyen & Zhang's methodology raises questions about preprocessing choices that were not fully documented, presenting an opportunity for deeper investigation. Third, diabetes prediction is a clinically meaningful problem where understanding _why_ certain models succeed or fail can inform real-world deployment decisions.
 
-### c. Approach
+### c. Approach {#c-approach}
 
 This project follows a replication-and-extension methodology. I first replicate the original study's results using their reported models (Logistic Regression, Decision Tree, K-Nearest Neighbors) on their balanced dataset. I then extend the analysis by: (1) reverse-engineering their preprocessing to understand undocumented choices, (2) applying alternative class balancing strategies (SMOTE, SMOTE-Tomek, class weighting), (3) testing additional models (Random Forest, XGBoost, CatBoost, Gaussian Naive Bayes), and (4) conducting diagnostic analysis to explain unexpected results. This approach emphasizes understanding model behavior rather than simply benchmarking accuracy.
 
 ---
 
-## 2. Data
+## 2. Data {#2-data}
 
-### a. Introducing the Data
+### a. Introducing the Data {#a-introducing-the-data}
 
 The dataset originates from the CDC's Behavioral Risk Factor Surveillance System (BRFSS) 2015 survey, a telephone-based health survey of over 400,000 U.S. adults. The cleaned dataset, published on Kaggle by Alex Teboul, contains 253,680 responses with 21 feature variables and one binary target variable indicating diabetes status (0 = no diabetes, 1 = prediabetes or diabetes).
 
@@ -71,35 +76,35 @@ The dataset exhibits significant class imbalance: 218,334 (86.1%) non-diabetic a
 
 Nguyen & Zhang used a separate balanced version containing 70,692 samples with an equal 50-50 split, created through random undersampling of the majority class.
 
-### b. Visual Analysis of Data
+### b. Visual Analysis of Data {#b-visual-analysis-of-data}
 
 Exploratory Data Analysis revealed several important patterns that informed preprocessing and model selection decisions.
 
 **Class Imbalance:** Figure 1 shows the target variable distribution, confirming the 6.2:1 imbalance ratio that necessitates balancing strategies.
 
-<img src="img/fig_eda_target_distribution.png">
+![Target Variable Distribution](img/fig_eda_target_distribution.png)
 
 **Numeric Feature Distributions:** Figure 2 displays the distributions of BMI, MentHlth, and PhysHlth. BMI follows a right-skewed distribution (skewness = 2.12), while MentHlth and PhysHlth are zero-inflated—most respondents report 0 days of poor health, with a secondary spike at 30 days.
 
-<img src="img/fig_eda_numeric_distributions.png">
+![Numeric Feature Distributions](img/fig_eda_numeric_distributions.png)
 
 **Feature Correlations with Diabetes:** Figure 3 shows the correlation of each feature with the target variable. The strongest predictors are GenHlth (+0.294), HighBP (+0.263), DiffWalk (+0.218), BMI (+0.217), and HighChol (+0.200). Protective factors include Income (-0.164) and PhysActivity (-0.118).
 
-<img src="img/fig_eda_target_correlations.png">
+![Feature Correlations with Target](img/fig_eda_target_correlations.png)
 
 **Diabetes Rate by Binary Features:** Figure 4 reveals that HighBP has a 4.1x risk ratio (24.4% vs 6.0% diabetes rate), while CholCheck shows a 5.7x ratio, though this may reflect healthcare access rather than causation.
 
-<img src="img/fig_eda_binary_vs_target.png">
+![Diabetes Rate by Binary Features](img/fig_eda_binary_vs_target.png)
 
 **Feature Correlation Heatmap:** Figure 5 shows inter-feature correlations. Notable pairs include GenHlth-PhysHlth (r=0.52), DiffWalk-PhysHlth (r=0.48), and Education-Income (r=0.45), suggesting potential multicollinearity for linear models.
 
-<img src="img/fig_eda_correlation_matrix.png">
+![Feature Correlation Matrix](img/fig_eda_correlation_matrix.png)
 
 **Ordinal Feature Relationships:** Figure 6 demonstrates that diabetes rates increase monotonically with Age (peaking at category 10-11) and GenHlth (from 3% at "Excellent" to 38% at "Poor"), while decreasing with Education and Income levels.
 
-<img src="img/fig_eda_ordinal_vs_target.png">
+![Diabetes Rate by Ordinal Features](img/fig_eda_ordinal_vs_target.png)
 
-### c. Data Preprocessing
+### c. Data Preprocessing {#c-data-preprocessing}
 
 **Forensic Analysis of Paper's Preprocessing:**
 
@@ -147,9 +152,9 @@ Critically, the test set remains imbalanced (86/14) for SMOTE, SMOTE-Tomek, and 
 
 ---
 
-## 3. Machine Learning Methods
+## 3. Machine Learning Methods {#3-machine-learning-methods}
 
-### a. Logistic Regression
+### a. Logistic Regression {#a-logistic-regression}
 
 Logistic Regression is a linear classification model that estimates the probability of class membership using the logistic (sigmoid) function:
 
@@ -165,7 +170,7 @@ The model learns coefficients β by minimizing the negative log-likelihood (cros
 
 **Weaknesses:** Assumes linear decision boundaries; may underperform if feature interactions are important.
 
-### b. Decision Tree
+### b. Decision Tree {#b-decision-tree}
 
 Decision Tree classifiers recursively partition the feature space by selecting splits that maximize information gain (or minimize Gini impurity):
 
@@ -183,7 +188,7 @@ Note: The original paper did not specify hyperparameters. Default parameters yie
 
 **Weaknesses:** Prone to overfitting without depth constraints; high variance.
 
-### c. K-Nearest Neighbors
+### c. K-Nearest Neighbors {#c-k-nearest-neighbors}
 
 KNN classifies samples based on majority vote among the k closest training samples, using Euclidean distance:
 
@@ -197,7 +202,7 @@ $$d(x, y) = \sqrt{\sum_{i=1}^{n}(x_i - y_i)^2}$$
 
 **Weaknesses:** Computationally expensive at prediction time; sensitive to feature scaling; may struggle with zero-inflated features (MentHlth, PhysHlth) that distort distance calculations.
 
-### d. Random Forest
+### d. Random Forest {#d-random-forest}
 
 Random Forest is an ensemble of decision trees trained on bootstrap samples with random feature subsets at each split. Predictions are made by majority vote across all trees.
 
@@ -209,7 +214,7 @@ Random Forest is an ensemble of decision trees trained on bootstrap samples with
 
 **Weaknesses:** Less interpretable than single trees; can be slow for large datasets.
 
-### e. XGBoost
+### e. XGBoost {#e-xgboost}
 
 XGBoost (Extreme Gradient Boosting) builds trees sequentially, with each tree correcting the residual errors of the ensemble. It uses regularized loss functions to prevent overfitting:
 
@@ -223,7 +228,7 @@ $$\mathcal{L} = \sum_{i} l(y_i, \hat{y}_i) + \sum_{k} \Omega(f_k)$$
 
 **Weaknesses:** Many hyperparameters; can overfit to training distribution (as discovered in this study).
 
-### f. CatBoost
+### f. CatBoost {#f-catboost}
 
 CatBoost is a gradient boosting algorithm optimized for categorical features using ordered boosting to prevent target leakage.
 
@@ -235,7 +240,7 @@ CatBoost is a gradient boosting algorithm optimized for categorical features usi
 
 **Weaknesses:** Slower training than XGBoost on some datasets.
 
-### g. Gaussian Naive Bayes
+### g. Gaussian Naive Bayes {#g-gaussian-naive-bayes}
 
 Naive Bayes classifiers apply Bayes' theorem with a "naive" assumption of feature independence:
 
@@ -253,9 +258,9 @@ Gaussian Naive Bayes assumes features follow normal distributions within each cl
 
 ---
 
-## 4. Results
+## 4. Results {#4-results}
 
-### a. Experimental Setup
+### a. Experimental Setup {#a-experimental-setup}
 
 I conducted 28 experiments: 7 models × 4 datasets. All experiments used 70/30 train/test splits with stratification. Evaluation metrics included accuracy, precision, recall, F1-score, and ROC-AUC. Models were trained using scikit-learn, XGBoost, and CatBoost libraries with default or documented hyperparameters.
 
@@ -271,7 +276,7 @@ Models were evaluated in the following order to facilitate comparison between pa
 | 6     | XGBoost             | Extension      |
 | 7     | CatBoost            | Extension      |
 
-### b. Paper Replication Results
+### b. Paper Replication Results {#b-paper-replication-results}
 
 **Replication was successful.** My results closely matched Nguyen & Zhang's reported accuracies:
 
@@ -297,7 +302,7 @@ Note: Decision Tree required hyperparameter tuning (`max_depth=10`, `min_samples
 
 Ensemble methods did not substantially outperform Logistic Regression on the balanced dataset.
 
-### c. Extension Results: SMOTE and Class Weight
+### c. Extension Results: SMOTE and Class Weight {#c-extension-results-smote-and-class-weight}
 
 Initial results on SMOTE-preprocessed data appeared catastrophic:
 
@@ -315,13 +320,13 @@ Initial results on SMOTE-preprocessed data appeared catastrophic:
 
 The ensemble models achieved high accuracy but abysmal recall—they were predicting almost everyone as non-diabetic.
 
-### d. Diagnostic Analysis: Why Models "Failed"
+### d. Diagnostic Analysis: Why Models "Failed" {#d-diagnostic-analysis-why-models-failed}
 
 I conducted diagnostic analysis to understand these unexpected results.
 
 **Root Cause: Train/Test Distribution Mismatch**
 
-<img src="img/fig_probability_distributions.png">
+![Probability Distributions by True Class](img/fig_probability_distributions.png)
 
 Figure 7 reveals the problem. For XGBoost, CatBoost, and Random Forest, predicted probabilities cluster below 0.3 for both classes. At the default 0.5 threshold, almost no samples are classified as diabetic.
 
@@ -338,7 +343,7 @@ Notably, Logistic Regression over-predicted (33.8% vs 13.9%), while tree-based m
 
 **Fix: Threshold Optimization**
 
-<img src="img/fig_threshold_tuning.png">
+![Metrics vs Decision Threshold](img/fig_threshold_tuning.png)
 
 Figure 8 shows how F1, recall, and precision vary with threshold. The optimal thresholds differ dramatically from 0.5:
 
@@ -346,12 +351,12 @@ Figure 8 shows how F1, recall, and precision vary with threshold. The optimal th
 | ------------------- | ----------------- | ----------------- | -------------------- |
 | XGBoost             | 0.50              | 0.24              | 0.279 → 0.464 (+66%) |
 | CatBoost            | 0.50              | 0.25              | 0.273 → 0.464 (+70%) |
-| Random Forest       | 0.50              | 0.23              | 0.281 → 0.436 (+55%) |
+| Random Forest       | 0.50              | 0.22              | 0.281 → 0.436 (+55%) |
 | Logistic Regression | 0.50              | 0.64              | 0.444 → 0.461 (+4%)  |
 
 **Calibration Analysis**
 
-<img src="img/fig_calibration_curves.png">
+![Calibration Curves](img/fig_calibration_curves.png)
 
 Figure 9 shows calibration curves. Logistic Regression closely follows the diagonal, indicating well-calibrated probabilities. Tree-based models deviate substantially, explaining why threshold tuning had larger effects on them.
 
@@ -371,7 +376,7 @@ After threshold optimization, all models achieve similar performance:
 | Decision Tree       | 0.45      | 74.8%    | 0.312     | 58.2%  | 0.406 | 0.806   |
 | KNN                 | 0.42      | 75.2%    | 0.298     | 54.1%  | 0.384 | 0.742   |
 | Gaussian NB         | 0.52      | 71.8%    | 0.297     | 72.3%  | 0.421 | 0.778   |
-| Random Forest       | 0.23      | 76.8%    | 0.330     | 64.4%  | 0.436 | 0.796   |
+| Random Forest       | 0.22      | 76.8%    | 0.330     | 64.4%  | 0.436 | 0.796   |
 | XGBoost             | 0.24      | 80.1%    | 0.371     | 61.9%  | 0.464 | 0.825   |
 | CatBoost            | 0.25      | 81.1%    | 0.383     | 58.9%  | 0.464 | 0.826   |
 
@@ -385,16 +390,18 @@ Direct F1 comparison between paper's results (~0.75) and my SMOTE results (~0.46
 | ------------ | ---------- | --------------- | ---------------- |
 | Paper 50-50  | 0.824      | 0.823           | 0.823            |
 | SMOTE        | 0.822      | 0.825           | 0.826            |
-| SMOTE-Tomek  | 0.822      | 0.603           | 0.602            |
+| SMOTE-Tomek  | 0.822      | 0.603\*         | 0.602\*          |
 | Class Weight | 0.824      | 0.815           | 0.821            |
 
-The apparent F1 gap reflects evaluation methodology, not model quality.
+\*Note: The anomalously low ROC-AUC for XGBoost and CatBoost on SMOTE-Tomek warrants further investigation. This may indicate that Tomek link removal disproportionately affected the decision boundaries learned by boosting models. This finding suggests SMOTE-Tomek may not be suitable for gradient boosting algorithms on this dataset.
+
+The apparent F1 gap between our results and the paper's reflects evaluation methodology, not model quality.
 
 ---
 
-## 5. Conclusion
+## 5. Conclusion {#5-conclusion}
 
-### a. Summary of Extensions
+### a. Summary of Extensions {#a-summary-of-extensions}
 
 | Aspect              | Paper's Approach              | Our Extension                             |
 | ------------------- | ----------------------------- | ----------------------------------------- |
@@ -405,9 +412,9 @@ The apparent F1 gap reflects evaluation methodology, not model quality.
 | Models Tested       | 3                             | 7                                         |
 | Threshold           | Default 0.5                   | Optimized per model                       |
 
-### b. Why the Paper's Simple Approach Worked
+### b. Why the Paper's Simple Approach Worked {#b-why-the-papers-simple-approach-worked}
 
-A surprising finding was that Nguyen & Zhang's minimal preprocessing—raw values with random undersampling—produced results comparable to our more sophisticated pipeline. This deserves explanation.
+A surprising finding was that Nguyen & Zhang's minimal preprocessing—raw values with random undersampling—produced results comparable to our more sophisticated pipeline. This has a few reasons.
 
 **The dataset's structure favors simplicity.** With 14 binary features, 4 bounded ordinal features, and only 3 truly continuous features, the data is already reasonably well-behaved. StandardScaler provides marginal benefit because most features don't have extreme ranges or outliers. The paper's approach worked not despite its simplicity, but partly because of it—fewer preprocessing steps mean fewer opportunities to introduce distribution mismatches.
 
@@ -415,7 +422,7 @@ A surprising finding was that Nguyen & Zhang's minimal preprocessing—raw value
 
 **The features have inherent predictive limits.** The ~0.82 ROC-AUC ceiling appears across all models and preprocessing strategies, suggesting this represents the fundamental predictability of diabetes from self-reported behavioral indicators. No amount of model complexity or preprocessing sophistication can extract signal that isn't present in the data. The paper's simple approach captured most of this available signal.
 
-### c. Why Logistic Regression Matched Complex Models
+### c. Why Logistic Regression Matched Complex Models {#c-why-logistic-regression-matched-complex-models}
 
 Perhaps the most striking finding was that Logistic Regression performed as well as XGBoost and CatBoost (ROC-AUC ~0.82) despite being a much simpler model. Several factors explain this:
 
@@ -427,7 +434,7 @@ Perhaps the most striking finding was that Logistic Regression performed as well
 
 **Regularization in boosting may have hurt.** XGBoost and CatBoost include regularization to prevent overfitting, which can cause them to produce conservative (lower) probability estimates. On imbalanced test data, this conservatism manifests as under-prediction of the minority class—exactly the failure mode we observed.
 
-### d. Why SMOTE Models Initially "Failed"
+### d. Why SMOTE Models Initially "Failed" {#d-why-smote-models-initially-failed}
 
 The apparent failure of SMOTE-trained ensemble models (18-20% recall) was the most instructive finding of this project. Understanding _why_ this happened reveals important principles about machine learning evaluation:
 
@@ -439,7 +446,7 @@ The apparent failure of SMOTE-trained ensemble models (18-20% recall) was the mo
 
 **This is a general lesson, not a SMOTE-specific problem.** Any resampling technique that changes the training class distribution (SMOTE, ADASYN, random oversampling, random undersampling applied only to training data) will create this mismatch. The paper avoided this by applying undersampling to the entire dataset before train/test split, ensuring both sets had the same 50/50 distribution.
 
-### e. What the Predictability Ceiling Tells Us
+### e. What the Predictability Ceiling Tells Us {#e-what-the-predictability-ceiling-tells-us}
 
 All models converged to approximately 0.82 ROC-AUC regardless of preprocessing or complexity. This ceiling is informative:
 
@@ -449,7 +456,7 @@ All models converged to approximately 0.82 ROC-AUC regardless of preprocessing o
 
 **The ceiling validates both approaches.** The fact that our sophisticated preprocessing achieved the same ROC-AUC as the paper's simple approach suggests both are valid. Neither is "wrong"—they simply make different tradeoffs between methodological rigor and practical simplicity.
 
-### f. Challenges
+### f. Challenges {#f-challenges}
 
 The primary challenge was **resisting the temptation to accept surprising results at face value.** When SMOTE-trained ensemble models showed 18-20% recall, the easy response would have been to conclude "SMOTE doesn't work" or "tree-based models fail on this data." Instead, investigating _why_ the results looked wrong led to the threshold calibration insight—arguably the most valuable finding of the project.
 
@@ -457,7 +464,7 @@ A second challenge was **reverse-engineering undocumented methodology.** The pap
 
 A third challenge was **recognizing when metrics are incomparable.** Initial disappointment that our F1 scores (0.46) were much lower than the paper's (0.75) was misplaced—we were evaluating on a harder task (imbalanced test data). Identifying ROC-AUC as the appropriate comparison metric required understanding what each metric actually measures.
 
-### g. Future Work
+### g. Future Work {#g-future-work}
 
 1. **Threshold Optimization via Validation Set:** Current threshold tuning uses test data, which leaks information. A proper implementation would use a held-out validation set or cross-validation to select thresholds.
 
@@ -469,9 +476,11 @@ A third challenge was **recognizing when metrics are incomparable.** Initial dis
 
 5. **External Validation:** Testing on BRFSS data from other years (2016-2023) would assess whether findings generalize beyond this specific dataset.
 
+6. **SMOTE-Tomek Investigation:** The anomalously low ROC-AUC for boosting models on SMOTE-Tomek data warrants deeper investigation to understand why Tomek link removal degraded performance.
+
 ---
 
-## 6. References
+## 6. References {#6-references}
 
 Nguyen, Bruce, and Yan Zhang. "A Comparative Study of Diabetes Prediction Based on Lifestyle Factors Using Machine Learning." _arXiv preprint arXiv:2503.04137_, 2025.
 
@@ -485,7 +494,23 @@ Pedregosa, Fabian, et al. "Scikit-learn: Machine Learning in Python." _Journal o
 
 ---
 
-## 7. Source Code
+## 7. Acknowledgements {#7-acknowledgements}
+
+This project was developed with assistance from Claude (Anthropic), an AI assistant. Claude provided support for:
+
+- Experimental design and methodology planning
+- Code refinement for preprocessing, modeling, and diagnostics
+- Debugging and troubleshooting runtime issues
+- Results interpretation support and diagnostic analysis
+- Paper structure refinement and consistency checks
+
+All code was initially drafted then reviewed, tested, and validated by the author. The diagnostic analysis identifying the threshold calibration issue emerged from collaborative discussion with Claude after initial results showed unexpected patterns.
+
+Online resources consulted include scikit-learn documentation, imbalanced-learn documentation for SMOTE implementation, and Kaggle notebooks for dataset context.
+
+---
+
+## 8. Source Code {#8-source-code}
 
 GitHub Repository: [https://github.com/yourusername/diabetes-prediction](https://github.com/yourusername/diabetes-prediction)
 
@@ -494,24 +519,29 @@ Repository structure:
 ```
 diabetes-prediction/
 ├── README.md
-├── data/
-│   ├── diabetes_binary_health_indicators_BRFSS2015.csv
-│   └── diabetes_binary_5050split_health_indicators_BRFSS2015.csv
-├── notebooks/
-│   ├── 01_eda.py                 # Data validation + exploratory analysis
-│   ├── 02_preprocessing.py       # Forensics + preprocessing pipeline
-│   └── 03_modeling.py            # Experiments + diagnostics + conclusions
-├── results/
-│   ├── model_comparison_results.csv
-│   ├── threshold_tuned_results.csv
-│   └── figures/
-│       ├── fig_eda_target_distribution.png
-│       ├── fig_eda_numeric_distributions.png
-│       ├── fig_eda_correlation_matrix.png
-│       ├── fig_probability_distributions.png
-│       ├── fig_threshold_tuning.png
-│       └── fig_calibration_curves.png
+├── README.pdf
+├── 01-eda.ipynb                  # Data validation + exploratory analysis
+├── 02-preprocessing.ipynb        # Forensics + preprocessing pipeline
+├── 03-modeling.ipynb             # Experiments + diagnostics + conclusions
+├── diabetes_binary_health_indicators_BRFSS2015.csv
+├── diabetes_binary_5050split_health_indicators_BRFSS2015.csv
 ├── preprocessed_data.pkl
 ├── scaler.pkl
-└── report.pdf
+├── model_comparison_results.csv
+├── threshold_tuned_results.csv
+└── img/
+    ├── fig_calibration_curves.png
+    ├── fig_eda_binary_prevalence.png
+    ├── fig_eda_binary_vs_target.png
+    ├── fig_eda_correlation_matrix.png
+    ├── fig_eda_interaction_age_bp.png
+    ├── fig_eda_interaction_bmi_activity.png
+    ├── fig_eda_numeric_distributions.png
+    ├── fig_eda_numeric_vs_target.png
+    ├── fig_eda_ordinal_distributions.png
+    ├── fig_eda_ordinal_vs_target.png
+    ├── fig_eda_target_correlations.png
+    ├── fig_eda_target_distribution.png
+    ├── fig_probability_distributions.png
+    └── fig_threshold_tuning.png
 ```
