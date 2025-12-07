@@ -512,7 +512,7 @@ Online resources consulted include scikit-learn documentation, imbalanced-learn 
 
 ## 8. Source Code {#8-source-code}
 
-GitHub Repository: [https://github.com/yourusername/diabetes-prediction](https://github.com/yourusername/diabetes-prediction)
+GitHub Repository: [https://github.com/dganesh05/Comparative-Study-on-Machine-Learning-Classification-Techniques-for-Diabetes-Prediction](https://github.com/dganesh05/Comparative-Study-on-Machine-Learning-Classification-Techniques-for-Diabetes-Prediction)
 
 Repository structure:
 
